@@ -1,4 +1,4 @@
-# prog4 shell
+# prog2 Culling
 
-This repo branch contains a shell for program 4 in nc state cg class 2020. 
+This repo branch contains the code for program 2: culling in nc state cg class 2025. 
 
