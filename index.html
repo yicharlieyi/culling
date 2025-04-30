@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Prog 2: Culling</title>
+    
+    <link type="text/css" rel="stylesheet" href="rasterize.css">
+
+    <script type="text/javascript" src="gl-matrix.js"></script>
+    <script type="text/javascript" src="rasterize.js"></script>
+
+    <style>
+      /* Style for the HUD overlay */
+      #hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      /* Ensure the canvases are positioned correctly */
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+
+  <body onload="main();">
+    <!-- WebGL Canvas -->
+    <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
+
+    <!-- Image Canvas (if needed) -->
+    <canvas id="myImageCanvas" width="512" height="512"></canvas>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+      <p>Total Triangles: <span id="triangleCount">0</span></p>
+      <p>Rendered Triangles: <span id="renderedTriangleCount">0</span></p>
+      <p>FPS: <span id="fps">0.00     </span><span id="frameTime">     /0.00ms</span></p>
+      <p>Culling Mode: <span id="cullingMode">None</span></p>
+      <p>Custom Mode: <span id="customMode">Off</span></p>
+    </div>
+  </body>
+</html>
