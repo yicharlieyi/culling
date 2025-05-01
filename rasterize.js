@@ -742,9 +742,11 @@ function renderRooms() {
         // Set up vertex attributes
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(vPosAttribLoc);
         
         gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
         gl.vertexAttribPointer(vUVAttribLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(vUVAttribLoc);
         
         // Final validation before draw call
         const errorBeforeDraw = gl.getError();
