@@ -652,8 +652,31 @@ function loadRooms() {
     }
 
     // Delete old buffers if they exist
-    if (vertexBuffer) gl.deleteBuffer(vertexBuffer);
-    if (texCoordBuffer) gl.deleteBuffer(texCoordBuffer);
+    // Delete old buffers if they exist
+    if (vertexBuffer) {
+        gl.deleteBuffer(vertexBuffer);
+        vertexBuffer = null;
+    }
+    if (texCoordBuffer) {
+        gl.deleteBuffer(texCoordBuffer);
+        texCoordBuffer = null;
+    }
+
+    // Validate vertex data before creating buffers
+    if (vertices.length === 0 || texCoords.length === 0) {
+        console.warn("No vertex data to render");
+        return;
+    }
+
+    // Check for NaN/Infinity values (MacOS is strict about this)
+    const hasInvalidVertices = vertices.some(v => !Number.isFinite(v));
+    const hasInvalidTexCoords = texCoords.some(t => !Number.isFinite(t));
+    
+    if (hasInvalidVertices || hasInvalidTexCoords) {
+        console.error("Invalid vertex data detected");
+        return;
+    }
+
 
     // Create new buffers
     vertexBuffer = gl.createBuffer();
@@ -664,40 +687,82 @@ function loadRooms() {
         return;
     }
     // Send vertex and texture coordinate data to WebGL buffers
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+    // Upload data with error checking
+    try {
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+        
+        // Check for WebGL errors
+        const error = gl.getError();
+        if (error !== gl.NO_ERROR) {
+            console.error("WebGL error during buffer upload:", error);
+            return;
+        }
+    } catch (e) {
+        console.error("Error uploading buffer data:", e);
+        return;
+    }
 
     // Render the rooms
-    // Render only if we have data
-    if (vertices.length > 0 && texCoords.length > 0) {
+    // Only proceed to render if everything succeeded
+    if (vertexBuffer && texCoordBuffer && vertices.length > 0) {
         renderRooms();
     }
 }
 
 function renderRooms() {
-    // Early exit if no data or buffers aren't valid
-    if (!vertexBuffer || !texCoordBuffer || vertices.length === 0 || texCoords.length === 0) {
-        console.warn("Skipping render: no valid buffer data");
+    // Comprehensive validation before rendering
+    if (!gl || !vertexBuffer || !texCoordBuffer) {
+        console.warn("Skipping render: WebGL not ready");
         return;
     }
 
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
-    // Calculate exact vertex count (3 components per vertex)
     const vertexCount = vertices.length / 3;
+    if (vertexCount <= 0) {
+        console.warn("Skipping render: no vertices to draw");
+        return;
+    }
 
-    // Bind buffers and draw
+    // Verify buffer sizes match expected data
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0);
+    const vertexBufferSize = gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE);
+    const expectedVertexSize = vertices.length * Float32Array.BYTES_PER_ELEMENT;
+    
+    if (vertexBufferSize !== expectedVertexSize) {
+        console.error(`Vertex buffer size mismatch: expected ${expectedVertexSize}, got ${vertexBufferSize}`);
+        return;
+    }
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-    gl.vertexAttribPointer(vUVAttribLoc, 2, gl.FLOAT, false, 0, 0);
+    try {
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        // Set up vertex attributes
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+        gl.vertexAttribPointer(vUVAttribLoc, 2, gl.FLOAT, false, 0, 0);
+        
+        // Final validation before draw call
+        const errorBeforeDraw = gl.getError();
+        if (errorBeforeDraw !== gl.NO_ERROR) {
+            console.error("WebGL error before draw:", errorBeforeDraw);
+            return;
+        }
 
-    // Verify we're not trying to draw more vertices than exist
-    if (vertexCount > 0) {
+        // Draw with exact vertex count
         gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+        
+        // Check for errors after drawing
+        const errorAfterDraw = gl.getError();
+        if (errorAfterDraw !== gl.NO_ERROR) {
+            console.error("WebGL error during draw:", errorAfterDraw);
+        }
+    } catch (e) {
+        console.error("Error during rendering:", e);
     }
 
     requestAnimationFrame(renderRooms);
@@ -836,7 +901,7 @@ function renderCellContents(cell, frustum, rooms, furniture, triangles, spheres)
                 // Render floors, ceilings, walls, and furniture for this cell
                 renderFloorAndCeiling(x, y, frustum);
                 renderWalls(x, y, frustum, rooms);
-                renderFurniture(x, y, frustum, furniture, triangles, spheres);
+                // renderFurniture(x, y, frustum, furniture, triangles, spheres);
             }
             if (rooms[y][x] === "p") {
                 renderFloorAndCeiling(x, y, frustum);
@@ -1433,7 +1498,10 @@ function setupShaders() {
         var vShader = gl.createShader(gl.VERTEX_SHADER); // create vertex shader
         gl.shaderSource(vShader,vShaderCode); // attach code to shader
         gl.compileShader(vShader); // compile the code for gpu execution
-            
+        // After shader compilation
+        if (vPosAttribLoc === -1 || vUVAttribLoc === -1) {
+            console.error("Shader attribute locations not found");
+        }
         if (!gl.getShaderParameter(fShader, gl.COMPILE_STATUS)) { // bad frag shader compile
             throw "error during fragment shader compile: " + gl.getShaderInfoLog(fShader);  
             gl.deleteShader(fShader);
