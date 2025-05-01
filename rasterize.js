@@ -312,8 +312,8 @@ function initializeLights() {
 
 var vertices = [];
 var texCoords = [];
-var vertexBuffer = [];
-var texCoordBuffer = [];
+var vertexBuffer = null;
+var texCoordBuffer = null;
 var rooms;
 let totalTriangles = 0;
 let renderedTriangles = 0;
@@ -651,33 +651,54 @@ function loadRooms() {
         });
     }
 
-    // Send vertex and texture coordinate data to WebGL buffers
+    // Delete old buffers if they exist
+    if (vertexBuffer) gl.deleteBuffer(vertexBuffer);
+    if (texCoordBuffer) gl.deleteBuffer(texCoordBuffer);
+
+    // Create new buffers
     vertexBuffer = gl.createBuffer();
+    texCoordBuffer = gl.createBuffer();
+
+    if (!vertexBuffer || !texCoordBuffer) {
+        console.error("Failed to create WebGL buffers");
+        return;
+    }
+    // Send vertex and texture coordinate data to WebGL buffers
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-    texCoordBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
 
     // Render the rooms
-    renderRooms();
+    // Render only if we have data
+    if (vertices.length > 0 && texCoords.length > 0) {
+        renderRooms();
+    }
 }
 
 function renderRooms() {
-    if (vertices.length === 0 || texCoords.length === 0) {
-        console.warn("No vertices or texCoords to render");
+    // Early exit if no data or buffers aren't valid
+    if (!vertexBuffer || !texCoordBuffer || vertices.length === 0 || texCoords.length === 0) {
+        console.warn("Skipping render: no valid buffer data");
         return;
     }
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
+    // Calculate exact vertex count (3 components per vertex)
+    const vertexCount = vertices.length / 3;
+
     // Bind buffers and draw
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
     gl.vertexAttribPointer(vUVAttribLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 3);
+
+    // Verify we're not trying to draw more vertices than exist
+    if (vertexCount > 0) {
+        gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+    }
 
     requestAnimationFrame(renderRooms);
 }
