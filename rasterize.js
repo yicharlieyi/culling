@@ -665,8 +665,13 @@ function loadRooms() {
 }
 
 function renderRooms() {
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (vertices.length === 0 || texCoords.length === 0) {
+        console.warn("No vertices or texCoords to render");
+        return;
+    }
 
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
     // Bind buffers and draw
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0);
